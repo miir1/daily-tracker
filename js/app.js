@@ -1,11 +1,12 @@
 // 오늘 탭 화면과 동작.
 import { todaySeoul, addDays, weekday, formatKo, nowSeoulISO } from './date.js';
-import { getDay, putDay, getAllDays, requestPersist } from './db.js';
+import { getDay, putDay, getAllDays, requestPersist, getSetting, setSetting } from './db.js';
 import { exportJSON, importJSON, exportCSV, backupOverdueDays, lastBackupDate } from './backup.js';
 
 const $ = sel => document.querySelector(sel);
 
-let config = null;      // items.json 내용
+let baseConfig = null;  // items.json 내용 (공개)
+let config = null;      // 실제로 쓰는 항목 = items.json + 폰에 저장된 비공개 항목
 let today = null;       // 서울 기준 오늘
 let viewDate = null;    // 지금 보고 있는 날짜
 let record = null;      // viewDate의 하루 기록
@@ -39,6 +40,25 @@ async function save(rec) {
   rec.numbers.tasks_done = rec.tasks.filter(t => t.text && t.done).length;
   rec.updatedAt = nowSeoulISO();
   await putDay(rec);
+}
+
+// ---------- 항목 목록 ----------
+
+// 비공개 항목(약물 등)은 GitHub에 올라가는 items.json에 넣지 않고,
+// 설정 탭에서 불러온 파일을 IndexedDB settings의 'privateItems'에 저장해 둔다.
+// 화면에 쓸 항목 = 공개 항목 + 비공개 항목 (비공개 그룹은 insertAfter 그룹 바로 뒤에 끼운다).
+async function buildConfig() {
+  const priv = await getSetting('privateItems');
+  const cfg = structuredClone(baseConfig);
+  if (priv && Array.isArray(priv.checks)) {
+    const newGroups = (priv.groups || []).filter(g => !cfg.groups.includes(g));
+    const at = cfg.groups.indexOf(priv.insertAfter);
+    cfg.groups.splice(at === -1 ? cfg.groups.length : at + 1, 0, ...newGroups);
+    const ids = new Set(cfg.checks.map(c => c.id));
+    cfg.checks.push(...priv.checks.filter(c => !ids.has(c.id)).map(c => ({ hidden: false, ...c })));
+  }
+  config = cfg;
+  return priv;
 }
 
 // ---------- 계산 ----------
@@ -104,7 +124,7 @@ function renderTodayTasks() {
   });
 }
 
-function checkRow(id, label, checked, onChange) {
+function checkRow(id, label, checked, onChange, desc) {
   const row = document.createElement('label');
   row.className = 'check-row';
   row.htmlFor = id;
@@ -113,10 +133,26 @@ function checkRow(id, label, checked, onChange) {
   input.id = id;
   input.checked = !!checked;
   input.addEventListener('change', () => onChange(input.checked));
-  const span = document.createElement('span');
-  span.textContent = label;
-  row.append(input, span);
+  const text = document.createElement('span');
+  text.className = 'check-text';
+  const main = document.createElement('span');
+  main.textContent = label;
+  text.appendChild(main);
+  if (desc) {
+    const small = document.createElement('small');
+    small.textContent = desc;
+    text.appendChild(small);
+  }
+  row.append(input, text);
   return row;
+}
+
+// 그룹 접힘 상태는 이 기기의 화면 편의 설정이라 localStorage에 둔다 (없어도 동작).
+function loadCollapsed() {
+  try { return JSON.parse(localStorage.getItem('collapsedGroups') || '[]'); } catch { return []; }
+}
+function saveCollapsed(list) {
+  try { localStorage.setItem('collapsedGroups', JSON.stringify(list)); } catch { /* 무시 */ }
 }
 
 function renderChecks() {
@@ -127,7 +163,12 @@ function renderChecks() {
     const inGroup = items.filter(c => c.group === group);
     if (inGroup.length === 0) continue; // 주말엔 매매 그룹 통째로 사라짐
     const det = document.createElement('details');
-    det.open = true;
+    det.open = !loadCollapsed().includes(group);
+    det.addEventListener('toggle', () => {
+      const list = loadCollapsed().filter(g => g !== group);
+      if (!det.open) list.push(group);
+      saveCollapsed(list);
+    });
     const sum = document.createElement('summary');
     const count = document.createElement('span');
     count.className = 'group-count';
@@ -142,7 +183,7 @@ function renderChecks() {
         updateCount();
         await save(record);
         renderHeader();
-      }));
+      }, c.desc));
     }
     updateCount();
     box.appendChild(det);
@@ -256,7 +297,7 @@ function showView(viewId) {
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
   document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== viewId; });
   window.scrollTo(0, 0);
-  if (viewId === 'view-settings') renderLastBackup();
+  if (viewId === 'view-settings') { renderLastBackup(); renderPrivateStatus(); }
   if (viewId === 'view-today') renderBackupBanner();
 }
 
@@ -302,6 +343,9 @@ function initBackup() {
     try {
       const r = await importJSON(file);
       showResult(`가져오기 완료 · 새로 추가 ${r.added}일 · 갱신 ${r.updated}일 · 기존 유지 ${r.kept}일`);
+      // 백업에 비공개 항목이 들어 있었을 수 있으니 항목 목록도 다시 만든다
+      await buildConfig();
+      renderPrivateStatus();
       await openDate(viewDate); // 오늘 탭에 가져온 기록 반영
     } catch (err) {
       showResult(`가져오기 실패: ${err.message}`);
@@ -309,10 +353,60 @@ function initBackup() {
   });
 }
 
+// ---------- 비공개 항목 (설정 탭) ----------
+
+async function renderPrivateStatus() {
+  const priv = await getSetting('privateItems');
+  const n = priv?.checks?.length || 0;
+  $('#private-status').textContent = n ? `${n}개 적용 중 (${(priv.groups || []).join(', ')})` : '없음';
+  $('#private-clear').hidden = !n;
+}
+
+function showPrivateResult(text) {
+  const p = $('#private-result');
+  p.textContent = text;
+  p.hidden = false;
+}
+
+function initPrivateItems() {
+  $('#private-load').addEventListener('click', () => $('#private-file').click());
+  $('#private-file').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      let data;
+      try { data = JSON.parse(await file.text()); } catch { throw new Error('JSON 형식이 아닙니다.'); }
+      if (data.app !== 'daily-tracker-private-items' || !Array.isArray(data.checks)) {
+        throw new Error('비공개 항목 파일(private_items.json)이 아닙니다.');
+      }
+      // 필요한 필드만 골라 저장 (id, group, label, days가 모두 있어야 함)
+      const checks = data.checks.filter(c => c.id && c.group && c.label && Array.isArray(c.days))
+        .map(({ id, group, label, desc, days, hidden }) => ({ id, group, label, desc, days, hidden: !!hidden }));
+      await setSetting('privateItems', { insertAfter: data.insertAfter, groups: data.groups || [], checks });
+      await buildConfig();
+      renderPrivateStatus();
+      await openDate(viewDate);
+      showPrivateResult(`비공개 항목 ${checks.length}개 적용 완료. 원본 파일은 지워도 됩니다.`);
+    } catch (err) {
+      showPrivateResult(`불러오기 실패: ${err.message}`);
+    }
+  });
+  $('#private-clear').addEventListener('click', async () => {
+    if (!confirm('비공개 항목을 이 기기에서 지울까요? (이미 체크한 기록은 남습니다)')) return;
+    await setSetting('privateItems', null);
+    await buildConfig();
+    renderPrivateStatus();
+    await openDate(viewDate);
+    showPrivateResult('비공개 항목을 지웠습니다.');
+  });
+}
+
 // ---------- 시작 ----------
 
 async function init() {
-  config = await fetch('items.json', { cache: 'no-cache' }).then(r => r.json());
+  baseConfig = await fetch('items.json', { cache: 'no-cache' }).then(r => r.json());
+  await buildConfig();
   today = todaySeoul();
   requestPersist();
 
@@ -337,6 +431,7 @@ async function init() {
   });
 
   initBackup();
+  initPrivateItems();
   renderBackupBanner();
 
   // 앱을 켜 둔 채 자정이 지나면, 다시 화면을 볼 때 날짜를 새로 맞춘다.
