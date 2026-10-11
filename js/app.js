@@ -258,6 +258,9 @@ async function init() {
   today = todaySeoul();
   requestPersist();
 
+  // 오프라인 동작용 서비스 워커 등록 (sw.js)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
   $('#prev-day').addEventListener('click', () => openDate(addDays(viewDate, -1)));
   $('#next-day').addEventListener('click', () => { if (viewDate < today) openDate(addDays(viewDate, 1)); });
   $('#go-today').addEventListener('click', () => openDate(today));
