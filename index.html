@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>데일리 체크</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <main>
+    <section id="view-today" class="view">
+      <header class="top">
+        <div class="date-nav">
+          <button id="prev-day" type="button" aria-label="이전 날">‹</button>
+          <span id="date-label"></span>
+          <button id="next-day" type="button" aria-label="다음 날">›</button>
+        </div>
+        <div class="progress-line">
+          <div class="progress"><div id="progress-fill"></div></div>
+          <span id="progress-text">0%</span>
+          <span id="streak">연속 0일</span>
+          <button id="go-today" type="button" hidden>오늘로</button>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>오늘 할 일</h2>
+        <div id="today-tasks"></div>
+        <p id="game-half" class="status" hidden>할 일 완료 0개 · 게임 시간 절반</p>
+      </section>
+
+      <section id="checks"></section>
+
+      <section class="card">
+        <h2>숫자</h2>
+        <div id="numbers"></div>
+      </section>
+
+      <section class="card">
+        <h2>내일 할 일 3개</h2>
+        <div id="tomorrow-tasks" class="text-inputs"></div>
+        <h2>한 줄 메모</h2>
+        <input id="note" type="text" maxlength="120" placeholder="선택">
+      </section>
+    </section>
+
+    <section id="view-weekly" class="view placeholder" hidden><p>주간 점검 — 5단계에서 추가</p></section>
+    <section id="view-stats" class="view placeholder" hidden><p>기록·통계 — 6단계에서 추가</p></section>
+    <section id="view-settings" class="view placeholder" hidden><p>설정 — 2·7단계에서 추가</p></section>
+  </main>
+
+  <nav class="tabs">
+    <button class="tab active" data-view="view-today" type="button">오늘</button>
+    <button class="tab" data-view="view-weekly" type="button">주간 점검</button>
+    <button class="tab" data-view="view-stats" type="button">기록·통계</button>
+    <button class="tab" data-view="view-settings" type="button">설정</button>
+  </nav>
+</body>
+</html>

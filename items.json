@@ -1,0 +1,30 @@
+{
+  "_설명": "체크 항목 목록. days는 표시 요일(0=일, 1=월 … 6=토). hidden이 true면 숨김. 순서는 배열 순서대로.",
+  "groups": ["아침", "매매", "게임", "운동", "식사", "학습", "수면", "밤"],
+  "checks": [
+    { "id": "wake", "group": "아침", "label": "07:30 고정 기상 (±1시간)", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "meds", "group": "아침", "label": "처방 시간에 복약 완료", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "prep", "group": "매매", "label": "장 전 준비 기록 (지수, 관심 3종목, 진입 조건)", "days": [1, 2, 3, 4, 5], "hidden": false },
+    { "id": "hts_close", "group": "매매", "label": "10:30 HTS 종료", "days": [1, 2, 3, 4, 5], "hidden": false },
+    { "id": "no_trade_sleepy", "group": "매매", "label": "수면 부족·졸린 날 매매 안 함", "days": [1, 2, 3, 4, 5], "hidden": false },
+    { "id": "entry_note", "group": "매매", "label": "진입 전 사유·손절·목표 기록", "days": [1, 2, 3, 4, 5], "hidden": false },
+    { "id": "no_game_am", "group": "게임", "label": "정오 전 게임 안 함", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "game_timer", "group": "게임", "label": "숙제 타이머 지키고 종료", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "no_game_late", "group": "게임", "label": "22:30 이후 게임 안 함", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "workout", "group": "운동", "label": "운동 완료 (최소 버전 포함)", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "protein", "group": "식사", "label": "매 끼 단백질 먼저", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "water", "group": "식사", "label": "물 충분히", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "coding_solo", "group": "학습", "label": "AI 없이 직접 코딩 30분 이상", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "no_caffeine_pm", "group": "수면", "label": "오후 2시 이후 카페인 없음", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "no_phone_bed", "group": "수면", "label": "침대에서 휴대폰 안 봄", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false },
+    { "id": "journal", "group": "밤", "label": "21:30 매매 일지 마감", "days": [1, 2, 3, 4, 5], "hidden": false },
+    { "id": "plan_tomorrow", "group": "밤", "label": "내일 할 일 3개 확정", "days": [0, 1, 2, 3, 4, 5, 6], "hidden": false }
+  ],
+  "numbers": [
+    { "id": "rule_violations", "label": "매매 규칙 위반", "unit": "건", "step": 1, "min": 0 },
+    { "id": "game_hours", "label": "게임 시간", "unit": "시간", "step": 0.5, "min": 0 },
+    { "id": "sleep_hours", "label": "수면 시간", "unit": "시간", "step": 0.5, "min": 0 },
+    { "id": "coding_minutes", "label": "코딩 시간", "unit": "분", "step": 10, "min": 0 }
+  ],
+  "weightDays": [0]
+}
