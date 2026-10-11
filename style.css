@@ -88,6 +88,17 @@ summary::-webkit-details-marker { display: none; }
   accent-color: var(--accent);
 }
 
+/* 예상 시간표 */
+.schedule summary { color: var(--text); font-weight: 500; gap: 8px; }
+#schedule-now { flex: 1; font-size: 14px; }
+.slot {
+  display: flex; gap: 10px; padding: 7px 0;
+  border-top: 1px solid var(--line); font-size: 14px;
+}
+.slot-time { flex: none; width: 92px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.slot.now { background: var(--accent-soft); margin: 0 -12px; padding: 7px 12px; }
+.slot.now .slot-time { color: var(--accent); font-weight: 600; }
+
 /* 숫자 입력 */
 .num-row { display: flex; align-items: center; gap: 8px; min-height: 48px; }
 .num-row + .num-row { border-top: 1px solid var(--line); }

@@ -43,6 +43,14 @@ export function formatKo(dateStr) {
   return `${dt.getUTCMonth() + 1}월 ${dt.getUTCDate()}일 (${WEEKDAY_KO[dt.getUTCDay()]})`;
 }
 
+// 서울 기준 지금 시각을 "HH:MM" 문자열로. 시간표에서 '지금' 칸을 찾을 때 쓴다.
+// "HH:MM" 형식끼리는 글자 비교만으로 시간 순서가 맞다 ("09:30" < "10:00").
+export function nowSeoulHM() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: SEOUL, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date());
+}
+
 // updatedAt용 서울 시간 타임스탬프. 예: "2026-10-12T21:35:00+09:00"
 // 서울은 서머타임이 없어서 항상 +09:00 이다.
 export function nowSeoulISO() {

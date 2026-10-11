@@ -1,5 +1,5 @@
 // 오늘 탭 화면과 동작.
-import { todaySeoul, addDays, weekday, formatKo, nowSeoulISO } from './date.js';
+import { todaySeoul, addDays, weekday, formatKo, nowSeoulISO, nowSeoulHM } from './date.js';
 import { getDay, putDay, getAllDays, requestPersist, getSetting, setSetting } from './db.js';
 import { exportJSON, importJSON, exportCSV, backupOverdueDays, lastBackupDate } from './backup.js';
 
@@ -190,6 +190,57 @@ function renderChecks() {
   }
 }
 
+// ---------- 예상 시간표 ----------
+
+// 지금 시각이 이 칸 안에 있는가. 취침(23:00–07:30)처럼 자정을 넘는 칸도 처리한다.
+function inSlot(slot, hm) {
+  return slot.start <= slot.end
+    ? hm >= slot.start && hm < slot.end
+    : hm >= slot.start || hm < slot.end;
+}
+
+function renderSchedule() {
+  const slots = (config.schedule || [])
+    .filter(s => s.days.includes(weekday(viewDate)))
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const card = $('#schedule');
+  card.hidden = slots.length === 0;
+  if (!slots.length) return;
+
+  // '지금 / 다음'은 오늘을 볼 때만 의미가 있다
+  const hm = nowSeoulHM();
+  const nowIdx = viewDate === today ? slots.findIndex(s => inSlot(s, hm)) : -1;
+  if (nowIdx >= 0) {
+    const cur = slots[nowIdx];
+    const next = slots[(nowIdx + 1) % slots.length];
+    $('#schedule-now').textContent = `지금 ${cur.label} ~${cur.end} · 다음 ${next.label}`;
+  } else {
+    $('#schedule-now').textContent = `시간표 ${slots.length}칸`;
+  }
+
+  const list = $('#schedule-list');
+  list.innerHTML = '';
+  slots.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'slot' + (i === nowIdx ? ' now' : '');
+    const time = document.createElement('span');
+    time.className = 'slot-time';
+    time.textContent = `${s.start}–${s.end}`;
+    const text = document.createElement('span');
+    text.className = 'check-text';
+    const main = document.createElement('span');
+    main.textContent = s.label;
+    text.appendChild(main);
+    if (s.desc) {
+      const small = document.createElement('small');
+      small.textContent = s.desc;
+      text.appendChild(small);
+    }
+    row.append(time, text);
+    list.appendChild(row);
+  });
+}
+
 function fmtNum(n) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
@@ -287,6 +338,7 @@ async function openDate(date) {
   viewDate = date;
   [record, nextRecord] = await Promise.all([loadRecord(date), loadRecord(addDays(date, 1))]);
   renderTodayTasks();
+  renderSchedule();
   renderChecks();
   renderNumbers();
   renderBottom();
@@ -444,6 +496,9 @@ async function init() {
       openDate(wasToday ? today : viewDate);
     }
   });
+
+  // 시간표의 '지금' 칸은 1분마다 갱신
+  setInterval(() => { if (viewDate === today) renderSchedule(); }, 60 * 1000);
 
   await openDate(today);
 }
