@@ -52,6 +52,28 @@ export function getAllDays() {
   return run('days', 'readonly', s => s.getAll());
 }
 
+// ---- 백업용: 저장소 이름을 받아 통째로 읽기/쓰기 ----
+
+export const STORES = ['days', 'weeks', 'ideas', 'settings'];
+
+export function getAllFrom(storeName) {
+  return run(storeName, 'readonly', s => s.getAll());
+}
+
+export function putInto(storeName, record) {
+  return run(storeName, 'readwrite', s => s.put(record));
+}
+
+// 설정값 1개 읽기/쓰기. settings 저장소는 { key, value } 형태로 저장한다.
+export async function getSetting(key) {
+  const row = await run('settings', 'readonly', s => s.get(key));
+  return row ? row.value : undefined;
+}
+
+export function setSetting(key, value) {
+  return run('settings', 'readwrite', s => s.put({ key, value }));
+}
+
 // 브라우저가 공간이 부족할 때 데이터를 지우지 않도록 "영구 저장"을 요청한다.
 // 지원하지 않는 브라우저면 조용히 넘어간다.
 export async function requestPersist() {

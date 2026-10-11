@@ -1,6 +1,7 @@
 // 오늘 탭 화면과 동작.
 import { todaySeoul, addDays, weekday, formatKo, nowSeoulISO } from './date.js';
 import { getDay, putDay, getAllDays, requestPersist } from './db.js';
+import { exportJSON, importJSON, exportCSV, backupOverdueDays, lastBackupDate } from './backup.js';
 
 const $ = sel => document.querySelector(sel);
 
@@ -251,6 +252,63 @@ async function openDate(date) {
   await renderHeader();
 }
 
+function showView(viewId) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
+  document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== viewId; });
+  window.scrollTo(0, 0);
+  if (viewId === 'view-settings') renderLastBackup();
+  if (viewId === 'view-today') renderBackupBanner();
+}
+
+// ---------- 백업 (설정 탭) ----------
+
+async function renderBackupBanner() {
+  const days = await backupOverdueDays();
+  $('#backup-banner').hidden = days === null;
+  if (days !== null) $('#backup-banner-text').textContent = `마지막 백업 후 ${days}일 지남`;
+}
+
+async function renderLastBackup() {
+  $('#last-backup').textContent = (await lastBackupDate()) || '없음';
+}
+
+function showResult(text) {
+  const p = $('#backup-result');
+  p.textContent = text;
+  p.hidden = false;
+}
+
+function initBackup() {
+  $('#backup-banner-btn').addEventListener('click', () => showView('view-settings'));
+
+  $('#export-json').addEventListener('click', async () => {
+    const date = await exportJSON();
+    renderLastBackup();
+    renderBackupBanner();
+    showResult(`백업 파일 저장: daily-tracker-${date}.json`);
+  });
+
+  $('#export-csv').addEventListener('click', async () => {
+    await exportCSV(config);
+    showResult('CSV 파일 저장 완료');
+  });
+
+  // 가져오기 버튼 → 숨겨진 파일 선택창을 연다
+  $('#import-json').addEventListener('click', () => $('#import-file').click());
+  $('#import-file').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    e.target.value = ''; // 같은 파일을 다시 골라도 동작하게 비워 둔다
+    if (!file) return;
+    try {
+      const r = await importJSON(file);
+      showResult(`가져오기 완료 · 새로 추가 ${r.added}일 · 갱신 ${r.updated}일 · 기존 유지 ${r.kept}일`);
+      await openDate(viewDate); // 오늘 탭에 가져온 기록 반영
+    } catch (err) {
+      showResult(`가져오기 실패: ${err.message}`);
+    }
+  });
+}
+
 // ---------- 시작 ----------
 
 async function init() {
@@ -259,19 +317,27 @@ async function init() {
   requestPersist();
 
   // 오프라인 동작용 서비스 워커 등록 (sw.js)
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // 새 버전의 서비스 워커가 자리를 잡으면 한 번 새로고침해서 최신 파일로 화면을 다시 그린다.
+    // (입력은 즉시 저장되므로 새로고침해도 잃는 것 없음)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) location.reload();
+    });
+  }
 
   $('#prev-day').addEventListener('click', () => openDate(addDays(viewDate, -1)));
   $('#next-day').addEventListener('click', () => { if (viewDate < today) openDate(addDays(viewDate, 1)); });
   $('#go-today').addEventListener('click', () => openDate(today));
 
-  // 하단 탭: 1단계에서는 '오늘'만 동작, 나머지는 준비 중 안내
+  // 하단 탭 전환
   document.querySelectorAll('.tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== btn.dataset.view; });
-    });
+    btn.addEventListener('click', () => showView(btn.dataset.view));
   });
+
+  initBackup();
+  renderBackupBanner();
 
   // 앱을 켜 둔 채 자정이 지나면, 다시 화면을 볼 때 날짜를 새로 맞춘다.
   document.addEventListener('visibilitychange', () => {

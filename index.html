@@ -29,6 +29,11 @@
         </div>
       </header>
 
+      <div id="backup-banner" class="banner" hidden>
+        <span id="backup-banner-text"></span>
+        <button id="backup-banner-btn" type="button">백업하기</button>
+      </div>
+
       <section class="card">
         <h2>오늘 할 일</h2>
         <div id="today-tasks"></div>
@@ -52,7 +57,22 @@
 
     <section id="view-weekly" class="view placeholder" hidden><p>주간 점검 — 5단계에서 추가</p></section>
     <section id="view-stats" class="view placeholder" hidden><p>기록·통계 — 6단계에서 추가</p></section>
-    <section id="view-settings" class="view placeholder" hidden><p>설정 — 2·7단계에서 추가</p></section>
+    <section id="view-settings" class="view" hidden>
+      <header class="top"><div class="page-title">설정</div></header>
+      <section class="card">
+        <h2>백업</h2>
+        <p class="muted">마지막 백업: <span id="last-backup">없음</span></p>
+        <div class="button-col">
+          <button id="export-json" class="btn" type="button">JSON 내보내기 (백업)</button>
+          <button id="import-json" class="btn" type="button">JSON 가져오기 (병합)</button>
+          <input id="import-file" type="file" accept=".json,application/json" hidden>
+          <button id="export-csv" class="btn" type="button">CSV 내보내기 (스프레드시트용)</button>
+        </div>
+        <p id="backup-result" class="status" hidden></p>
+        <p class="muted small">가져오기는 날짜별로 합칩니다. 같은 날짜는 더 나중에 수정된 쪽을 남기고, 이 기기에만 있는 기록은 지우지 않습니다.</p>
+      </section>
+      <section class="card placeholder"><p>항목·요일·다크 모드 설정 — 7단계에서 추가</p></section>
+    </section>
   </main>
 
   <nav class="tabs">
