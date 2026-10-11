@@ -1,81 +1,22 @@
-// 오늘 탭 화면과 동작.
-import { todaySeoul, addDays, weekday, formatKo, nowSeoulISO, nowSeoulHM } from './date.js';
-import { getDay, putDay, getAllDays, requestPersist, getSetting, setSetting } from './db.js';
+// 앱 시작점: 오늘 탭 화면 + 탭 전환 + 백업·비공개 항목 연결.
+// 공통 로직은 core.js, 각 탭은 workout.js / weekly.js / stats.js / settings.js.
+import { todaySeoul, addDays, weekday, formatKo, nowSeoulHM } from './date.js';
+import { getAllDays, requestPersist, getSetting, setSetting } from './db.js';
 import { exportJSON, importJSON, exportCSV, backupOverdueDays, lastBackupDate } from './backup.js';
+import { state, loadRecord, save, buildConfig, visibleChecks, completion } from './core.js';
+import { renderWorkoutCard, walkTarget, isWorkoutDay } from './workout.js';
+import { renderWeekly, initWeekly } from './weekly.js';
+import { renderStats, initStats } from './stats.js';
+import { renderSettings, initSettings, applyTheme } from './settings.js';
 
 const $ = sel => document.querySelector(sel);
 
-let baseConfig = null;  // items.json 내용 (공개)
-let config = null;      // 실제로 쓰는 항목 = items.json + 폰에 저장된 비공개 항목
-let today = null;       // 서울 기준 오늘
 let viewDate = null;    // 지금 보고 있는 날짜
 let record = null;      // viewDate의 하루 기록
 let nextRecord = null;  // viewDate+1의 하루 기록 ('내일 할 일 3개'가 여기에 저장됨)
-
-// ---------- 하루 기록 ----------
-
-function emptyRecord(date) {
-  return {
-    date,
-    checks: {},
-    numbers: { tasks_done: 0, rule_violations: 0, game_hours: 0, sleep_hours: 0, coding_minutes: 0, weight: null },
-    tasks: [],
-    workout: {},
-    note: '',
-    updatedAt: null,
-  };
-}
-
-async function loadRecord(date) {
-  const saved = await getDay(date);
-  // 저장본이 있으면 빈 틀 위에 덮어써서, 나중에 필드가 추가돼도 빠진 값이 없게 한다.
-  if (!saved) return emptyRecord(date);
-  const base = emptyRecord(date);
-  return { ...base, ...saved, numbers: { ...base.numbers, ...saved.numbers } };
-}
-
-// 저장: 체크·입력이 바뀔 때마다 바로 호출된다 (저장 버튼 없음).
-// tasks_done은 사람이 입력하지 않고 할 일 체크 수로 자동 계산해 같이 저장한다.
-async function save(rec) {
-  rec.numbers.tasks_done = rec.tasks.filter(t => t.text && t.done).length;
-  rec.updatedAt = nowSeoulISO();
-  await putDay(rec);
-}
-
-// ---------- 항목 목록 ----------
-
-// 비공개 항목(약물 등)은 GitHub에 올라가는 items.json에 넣지 않고,
-// 설정 탭에서 불러온 파일을 IndexedDB settings의 'privateItems'에 저장해 둔다.
-// 화면에 쓸 항목 = 공개 항목 + 비공개 항목 (비공개 그룹은 insertAfter 그룹 바로 뒤에 끼운다).
-async function buildConfig() {
-  const priv = await getSetting('privateItems');
-  const cfg = structuredClone(baseConfig);
-  if (priv && Array.isArray(priv.checks)) {
-    const newGroups = (priv.groups || []).filter(g => !cfg.groups.includes(g));
-    const at = cfg.groups.indexOf(priv.insertAfter);
-    cfg.groups.splice(at === -1 ? cfg.groups.length : at + 1, 0, ...newGroups);
-    const ids = new Set(cfg.checks.map(c => c.id));
-    cfg.checks.push(...priv.checks.filter(c => !ids.has(c.id)).map(c => ({ hidden: false, ...c })));
-  }
-  config = cfg;
-  return priv;
-}
+let currentView = 'view-today';
 
 // ---------- 계산 ----------
-
-// 그 날짜(요일)에 보여줄 체크 항목들. 숨김 항목, 해당 요일이 아닌 항목은 빠진다.
-function visibleChecks(date) {
-  const wd = weekday(date);
-  return config.checks.filter(c => !c.hidden && c.days.includes(wd));
-}
-
-// 완료율 = 그날 표시된 항목 중 완료 수 ÷ 전체 수. 기록이 없으면 0.
-function completion(rec, date) {
-  const items = visibleChecks(date);
-  if (!rec || items.length === 0) return 0;
-  const done = items.filter(c => rec.checks[c.id]).length;
-  return done / items.length;
-}
 
 // 연속 달성일: 완료율 70% 이상인 날이 끊기지 않고 이어진 일수.
 // 오늘이 아직 70% 미만이면(하루가 안 끝났을 수 있으니) 어제부터 센다.
@@ -83,7 +24,7 @@ async function streak() {
   const all = await getAllDays();
   const byDate = new Map(all.map(r => [r.date, r]));
   const ok = d => completion(byDate.get(d), d) >= 0.7;
-  let d = ok(today) ? today : addDays(today, -1);
+  let d = ok(state.today) ? state.today : addDays(state.today, -1);
   let count = 0;
   while (ok(d)) { count++; d = addDays(d, -1); }
   return count;
@@ -92,9 +33,9 @@ async function streak() {
 // ---------- 그리기 ----------
 
 async function renderHeader() {
-  $('#date-label').textContent = formatKo(viewDate) + (viewDate === today ? ' · 오늘' : '');
-  $('#next-day').disabled = viewDate >= today;
-  $('#go-today').hidden = viewDate === today;
+  $('#date-label').textContent = formatKo(viewDate) + (viewDate === state.today ? ' · 오늘' : '');
+  $('#next-day').disabled = viewDate >= state.today;
+  $('#go-today').hidden = viewDate === state.today;
 
   const pct = Math.round(completion(record, viewDate) * 100);
   $('#progress-fill').style.width = pct + '%';
@@ -155,11 +96,12 @@ function saveCollapsed(list) {
   try { localStorage.setItem('collapsedGroups', JSON.stringify(list)); } catch { /* 무시 */ }
 }
 
-function renderChecks() {
+async function renderChecks() {
   const box = $('#checks');
-  box.innerHTML = '';
   const items = visibleChecks(viewDate);
-  for (const group of config.groups) {
+  const walkMin = await walkTarget(viewDate);
+  box.innerHTML = '';
+  for (const group of state.config.groups) {
     const inGroup = items.filter(c => c.group === group);
     if (inGroup.length === 0) continue; // 주말엔 매매 그룹 통째로 사라짐
     const det = document.createElement('details');
@@ -178,7 +120,9 @@ function renderChecks() {
       count.textContent = `${inGroup.filter(c => record.checks[c.id]).length}/${inGroup.length}`;
     };
     for (const c of inGroup) {
-      det.appendChild(checkRow(`chk-${c.id}`, c.label, record.checks[c.id], async checked => {
+      // 걷기는 오늘의 목표 시간을 이름에 붙인다 (2주마다 +5분)
+      const label = c.id === 'walk' && walkMin ? `걷기 ${walkMin}분` : c.label;
+      det.appendChild(checkRow(`chk-${c.id}`, label, record.checks[c.id], async checked => {
         record.checks[c.id] = checked;
         updateCount();
         await save(record);
@@ -188,6 +132,20 @@ function renderChecks() {
     updateCount();
     box.appendChild(det);
   }
+}
+
+// 운동 요일에만 보이는 운동 카드
+async function renderWorkout() {
+  const card = $('#workout-card');
+  const show = isWorkoutDay(viewDate, weekday(viewDate)) && (state.config.workout?.exercises || []).length;
+  card.hidden = !show;
+  if (!show) return;
+  await renderWorkoutCard($('#workout-list'), record, async rec => {
+    await save(rec);
+    await renderWorkout();
+    await renderChecks();
+    renderHeader();
+  });
 }
 
 // ---------- 예상 시간표 ----------
@@ -200,7 +158,7 @@ function inSlot(slot, hm) {
 }
 
 function renderSchedule() {
-  const slots = (config.schedule || [])
+  const slots = (state.config.schedule || [])
     .filter(s => s.days.includes(weekday(viewDate)))
     .sort((a, b) => a.start.localeCompare(b.start));
   const card = $('#schedule');
@@ -209,7 +167,7 @@ function renderSchedule() {
 
   // '지금 / 다음'은 오늘을 볼 때만 의미가 있다
   const hm = nowSeoulHM();
-  const nowIdx = viewDate === today ? slots.findIndex(s => inSlot(s, hm)) : -1;
+  const nowIdx = viewDate === state.today ? slots.findIndex(s => inSlot(s, hm)) : -1;
   if (nowIdx >= 0) {
     const cur = slots[nowIdx];
     const next = slots[(nowIdx + 1) % slots.length];
@@ -248,7 +206,7 @@ function fmtNum(n) {
 function renderNumbers() {
   const box = $('#numbers');
   box.innerHTML = '';
-  for (const n of config.numbers) {
+  for (const n of state.config.numbers) {
     const row = document.createElement('div');
     row.className = 'num-row';
     const name = document.createElement('span');
@@ -281,7 +239,7 @@ function renderNumbers() {
   }
 
   // 체중: 측정 요일에만 입력칸 표시
-  if (config.weightDays.includes(weekday(viewDate))) {
+  if (state.config.weightDays.includes(weekday(viewDate))) {
     const row = document.createElement('div');
     row.className = 'num-row';
     row.innerHTML = '<label class="num-label" for="weight">체중</label>';
@@ -339,18 +297,22 @@ async function openDate(date) {
   [record, nextRecord] = await Promise.all([loadRecord(date), loadRecord(addDays(date, 1))]);
   renderTodayTasks();
   renderSchedule();
-  renderChecks();
+  await renderWorkout();
+  await renderChecks();
   renderNumbers();
   renderBottom();
   await renderHeader();
 }
 
-function showView(viewId) {
+async function showView(viewId) {
+  currentView = viewId;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
   document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== viewId; });
   window.scrollTo(0, 0);
-  if (viewId === 'view-settings') { renderLastBackup(); renderPrivateStatus(); }
-  if (viewId === 'view-today') renderBackupBanner();
+  if (viewId === 'view-today') { renderBackupBanner(); await openDate(viewDate); }
+  if (viewId === 'view-weekly') await renderWeekly();
+  if (viewId === 'view-stats') await renderStats();
+  if (viewId === 'view-settings') { renderLastBackup(); renderPrivateStatus(); await renderSettings(); }
 }
 
 // ---------- 백업 (설정 탭) ----------
@@ -382,7 +344,7 @@ function initBackup() {
   });
 
   $('#export-csv').addEventListener('click', async () => {
-    await exportCSV(config);
+    await exportCSV(state.config);
     showResult('CSV 파일 저장 완료');
   });
 
@@ -395,10 +357,11 @@ function initBackup() {
     try {
       const r = await importJSON(file);
       showResult(`가져오기 완료 · 새로 추가 ${r.added}일 · 갱신 ${r.updated}일 · 기존 유지 ${r.kept}일`);
-      // 백업에 비공개 항목이 들어 있었을 수 있으니 항목 목록도 다시 만든다
+      // 백업에 비공개 항목·항목 편집·설정이 들어 있었을 수 있으니 항목 목록도 다시 만든다
       await buildConfig();
+      applyTheme();
       renderPrivateStatus();
-      await openDate(viewDate); // 오늘 탭에 가져온 기록 반영
+      await renderSettings();
     } catch (err) {
       showResult(`가져오기 실패: ${err.message}`);
     }
@@ -438,7 +401,7 @@ function initPrivateItems() {
       await setSetting('privateItems', { insertAfter: data.insertAfter, groups: data.groups || [], checks });
       await buildConfig();
       renderPrivateStatus();
-      await openDate(viewDate);
+      await renderSettings();
       showPrivateResult(`비공개 항목 ${checks.length}개 적용 완료. 원본 파일은 지워도 됩니다.`);
     } catch (err) {
       showPrivateResult(`불러오기 실패: ${err.message}`);
@@ -449,7 +412,7 @@ function initPrivateItems() {
     await setSetting('privateItems', null);
     await buildConfig();
     renderPrivateStatus();
-    await openDate(viewDate);
+    await renderSettings();
     showPrivateResult('비공개 항목을 지웠습니다.');
   });
 }
@@ -457,9 +420,10 @@ function initPrivateItems() {
 // ---------- 시작 ----------
 
 async function init() {
-  baseConfig = await fetch('items.json', { cache: 'no-cache' }).then(r => r.json());
+  state.baseConfig = await fetch('items.json', { cache: 'no-cache' }).then(r => r.json());
+  state.today = todaySeoul();
   await buildConfig();
-  today = todaySeoul();
+  applyTheme();
   requestPersist();
 
   // 오프라인 동작용 서비스 워커 등록 (sw.js)
@@ -474,8 +438,8 @@ async function init() {
   }
 
   $('#prev-day').addEventListener('click', () => openDate(addDays(viewDate, -1)));
-  $('#next-day').addEventListener('click', () => { if (viewDate < today) openDate(addDays(viewDate, 1)); });
-  $('#go-today').addEventListener('click', () => openDate(today));
+  $('#next-day').addEventListener('click', () => { if (viewDate < state.today) openDate(addDays(viewDate, 1)); });
+  $('#go-today').addEventListener('click', () => openDate(state.today));
 
   // 하단 탭 전환
   document.querySelectorAll('.tab').forEach(btn => {
@@ -484,23 +448,29 @@ async function init() {
 
   initBackup();
   initPrivateItems();
+  initWeekly();
+  // 달력에서 날짜를 누르면 오늘 탭에서 그날 기록을 연다
+  initStats(async date => { viewDate = date; await showView('view-today'); });
+  // 설정이 바뀌면 (항목·요일·목표) 오늘 탭 내용도 다시 그린다
+  initSettings(async () => { await openDate(viewDate); });
   renderBackupBanner();
 
   // 앱을 켜 둔 채 자정이 지나면, 다시 화면을 볼 때 날짜를 새로 맞춘다.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     const now = todaySeoul();
-    if (now !== today) {
-      const wasToday = viewDate === today;
-      today = now;
-      openDate(wasToday ? today : viewDate);
+    if (now !== state.today) {
+      const wasToday = viewDate === state.today;
+      state.today = now;
+      if (wasToday) viewDate = now;
+      showView(currentView);
     }
   });
 
   // 시간표의 '지금' 칸은 1분마다 갱신
-  setInterval(() => { if (viewDate === today) renderSchedule(); }, 60 * 1000);
+  setInterval(() => { if (viewDate === state.today) renderSchedule(); }, 60 * 1000);
 
-  await openDate(today);
+  await openDate(state.today);
 }
 
 init().catch(err => {

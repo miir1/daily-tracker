@@ -45,6 +45,12 @@
         <div id="schedule-list"></div>
       </details>
 
+      <section id="workout-card" class="card" hidden>
+        <h2>운동 카드</h2>
+        <div id="workout-list"></div>
+        <p class="muted small">세트를 누르면 목표만큼 완료로 기록. 기록된 세트를 다시 누르면 실제 횟수를 고치거나 지울 수 있습니다. 2회 연속 모든 세트 완료 시 다음 목표가 올라갑니다.</p>
+      </section>
+
       <section id="checks"></section>
 
       <section class="card">
@@ -60,12 +66,77 @@
       </section>
     </section>
 
-    <section id="view-weekly" class="view placeholder" hidden><p>주간 점검 — 5단계에서 추가</p></section>
-    <section id="view-stats" class="view placeholder" hidden><p>기록·통계 — 6단계에서 추가</p></section>
+    <section id="view-weekly" class="view" hidden>
+      <header class="top">
+        <div class="date-nav">
+          <button id="week-prev" type="button" aria-label="이전 주">‹</button>
+          <span id="week-label"></span>
+          <button id="week-next" type="button" aria-label="다음 주">›</button>
+        </div>
+      </header>
+      <section class="card">
+        <h2>주간 지표</h2>
+        <div id="week-metrics" class="tiles"></div>
+      </section>
+      <section class="card">
+        <h2>이번 주 개선 항목</h2>
+        <p id="week-improve-now" class="status"></p>
+      </section>
+      <section class="card">
+        <h2>주간 점검</h2>
+        <div id="week-review"></div>
+        <h2>다음 주 개선 항목 1개</h2>
+        <input id="week-next-improve" type="text" maxlength="80" placeholder="다음 주에 바꿀 것 하나">
+      </section>
+      <section class="card">
+        <h2>쿨다운 중인 변경 아이디어</h2>
+        <div class="add-row">
+          <input id="idea-text" type="text" maxlength="80" placeholder="바꾸고 싶은 규칙 (바로 바꾸지 않고 7일 대기)">
+          <button id="idea-add" class="btn add-btn" type="button">추가</button>
+        </div>
+        <div id="idea-list"></div>
+        <details id="idea-decided-wrap" class="plain" hidden>
+          <summary>결정한 아이디어</summary>
+          <div id="idea-decided"></div>
+        </details>
+      </section>
+    </section>
+
+    <section id="view-stats" class="view" hidden>
+      <header class="top">
+        <div class="date-nav">
+          <button id="month-prev" type="button" aria-label="이전 달">‹</button>
+          <span id="month-label"></span>
+          <button id="month-next" type="button" aria-label="다음 달">›</button>
+        </div>
+      </header>
+      <section class="card">
+        <h2>월 달력 · 완료율</h2>
+        <div id="calendar" class="calendar"></div>
+        <div class="cal-legend"><span>낮음</span><i class="lv1"></i><i class="lv2"></i><i class="lv3"></i><i class="lv4"></i><span>높음</span><span class="muted">· 빈 칸 = 기록 없음</span></div>
+      </section>
+      <section class="card">
+        <h2>체중 추이 <span id="chart-weight-note" class="h2-note"></span></h2>
+        <div id="chart-weight"></div>
+      </section>
+      <section class="card">
+        <h2>수면 시간 (일별) <span class="h2-note">점선 6시간</span></h2>
+        <div id="chart-sleep"></div>
+      </section>
+      <section class="card">
+        <h2>게임 시간 (일별) <span class="h2-note">점선 상한 2시간</span></h2>
+        <div id="chart-game"></div>
+      </section>
+      <section class="card">
+        <h2>항목별 준수율 <span id="compliance-range" class="h2-note"></span></h2>
+        <div id="compliance"></div>
+      </section>
+    </section>
     <section id="view-settings" class="view" hidden>
       <header class="top"><div class="page-title">설정</div></header>
       <section class="card">
         <h2>백업</h2>
+
         <p class="muted">마지막 백업: <span id="last-backup">없음</span></p>
         <div class="button-col">
           <button id="export-json" class="btn" type="button">JSON 내보내기 (백업)</button>
@@ -87,7 +158,26 @@
         <p id="private-result" class="status" hidden></p>
         <p class="muted small">공개 사이트에 올리지 않는 항목(약물 등)을 이 기기에만 저장합니다. 다시 불러오면 덮어씁니다. JSON 백업에도 함께 들어갑니다.</p>
       </section>
-      <section class="card placeholder"><p>항목·요일·다크 모드 설정 — 7단계에서 추가</p></section>
+      <section class="card">
+        <h2>표시 설정</h2>
+        <div id="prefs"></div>
+      </section>
+      <section class="card">
+        <h2>운동 목표 (수동 조정)</h2>
+        <div id="targets"></div>
+        <p class="muted small">바꾸면 오늘부터 그 값에서 다시 증량 규칙을 적용합니다.</p>
+      </section>
+      <section class="card">
+        <h2>체크 항목</h2>
+        <div id="item-editor" class="editor" hidden></div>
+        <div class="button-col">
+          <button id="item-add" class="btn" type="button">+ 항목 추가</button>
+        </div>
+        <div id="item-list"></div>
+        <div class="button-col">
+          <button id="items-reset" class="btn" type="button">항목 편집 처음 상태로 되돌리기</button>
+        </div>
+      </section>
     </section>
   </main>
 
