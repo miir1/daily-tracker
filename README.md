@@ -1,7 +1,7 @@
 # 데일리 체크 트래커
 
 개인용 하루 체크 웹앱. 명세서: `데일리 체크 트래커 개발 명세서.docx` (2026-10-11).
-현재 **1단계(MVP)** 완료 — 오늘 탭: 일일 체크, 숫자 입력, 할 일 3개, 자동 저장, 지난 날짜 이동.
+완료: **1단계(MVP)**, **3단계(PWA·오프라인)**. 남은 것: 2, 4, 5, 6, 7단계.
 
 ## 파일 구조
 
@@ -13,16 +13,23 @@
 | `js/date.js` | 서울 기준 날짜 계산 (오늘, 날짜 더하기, 요일) |
 | `js/db.js` | IndexedDB 저장·불러오기 (브라우저 안에만 저장, 외부 전송 없음) |
 | `js/app.js` | 오늘 탭 그리기와 동작, 완료율·연속 달성일 계산 |
-| `serve.bat` | 더블클릭으로 실행 (PC + 같은 와이파이 폰에서 접속) |
+| `manifest.json`, `icons/` | 홈 화면 아이콘·앱 이름 (PWA) |
+| `sw.js` | 서비스 워커 — 앱 파일을 폰에 보관해 오프라인에서도 열리게 함 |
+| `serve.bat` | PC에서 로컬 테스트용 실행 |
+| `deploy.bat` | 커밋된 내용을 GitHub Pages로 올림 |
 
 ## 실행
 
-`serve.bat` 더블클릭 → PC는 http://localhost:8510 , 폰은 창에 뜬 `IPv4 주소:8510`.
-(index.html을 직접 더블클릭하면 items.json을 못 읽음 — 반드시 serve.bat으로.)
+**폰 (PC 꺼도 됨):** https://miir1.github.io/daily-tracker/ → 크롬 메뉴 → "홈 화면에 추가".
+코드를 고친 뒤에는 C:\dev 에서 커밋 → `deploy.bat` 실행 → 1~2분 뒤 반영.
+
+**PC 로컬 테스트:** `serve.bat` 더블클릭 → http://localhost:8510
+(index.html을 직접 더블클릭하면 items.json을 못 읽음.)
 
 ## 알아둘 점
 
 - 기록은 **그 브라우저 안**에만 있음. PC 기록과 폰 기록은 별개. 기기 간 옮기기는 2단계(JSON 내보내기/가져오기)에서.
-- 지금은 `http://PC주소` 로 열기 때문에, 주소(포트)가 바뀌면 다른 저장소로 취급됨. 3단계(PWA) 때 GitHub Pages 같은 고정 주소로 옮기는 걸 권장.
+- 주소가 바뀌면 다른 저장소로 취급됨 → 폰에서는 항상 위 GitHub Pages 주소만 사용.
+- GitHub 저장소(miir1/daily-tracker)는 공개. 코드만 있고 개인 기록은 없음.
 - 체중 입력칸은 `items.json`의 `weightDays`(기본: 일요일)에만 보임.
 - 백업 파일(`*.json`, `*.csv`)은 이 폴더에 두더라도 `.gitignore`로 커밋 제외됨 (items.json만 예외).
