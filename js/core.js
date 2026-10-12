@@ -13,7 +13,7 @@ export const state = {
   today: null,      // 서울 기준 오늘
 };
 
-export const DEFAULT_PREFS = { weightDays: [0], workoutDays: [1, 3, 5], theme: 'auto' };
+export const DEFAULT_PREFS = { weightDays: [0, 1, 2, 3, 4, 5, 6], workoutDays: [1, 3, 5], theme: 'auto' };
 
 // ---------- 하루 기록 ----------
 

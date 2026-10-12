@@ -23,11 +23,13 @@ export function weekMetrics(ws, days, today) {
   const upToToday = week.filter(d => d <= today);
   const recs = upToToday.map(d => byDate.get(d)).filter(Boolean);
 
-  // 체중: 이번 주 마지막 측정값과, 그 직전 측정값 대비 변화
-  const weighed = days.filter(r => r.numbers?.weight != null).sort((a, b) => a.date.localeCompare(b.date));
-  const inWeek = weighed.filter(r => r.date >= ws && r.date <= addDays(ws, 6));
-  const last = inWeek[inWeek.length - 1];
-  const prev = last ? weighed.filter(r => r.date < last.date).pop() : null;
+  // 체중: 매일 재면 하루하루 오르내림이 크니까 주 평균으로 보고, 지난주 평균과 비교한다
+  const avgWeight = (from, to) => {
+    const vals = days.filter(r => r.date >= from && r.date <= to && r.numbers?.weight != null).map(r => r.numbers.weight);
+    return vals.length ? { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length } : null;
+  };
+  const wNow = avgWeight(ws, addDays(ws, 6));
+  const wPrev = avgWeight(addDays(ws, -7), addDays(ws, -1));
 
   // 운동 완료율: workout 체크한 날 ÷ 7
   const workoutDays = recs.filter(r => r.checks?.workout).length;
@@ -42,8 +44,9 @@ export function weekMetrics(ws, days, today) {
 
   const sum = id => recs.reduce((n, r) => n + (Number(r.numbers?.[id]) || 0), 0);
   return {
-    weight: last ? last.numbers.weight : null,
-    weightDiff: last && prev ? last.numbers.weight - prev.numbers.weight : null,
+    weight: wNow ? wNow.avg : null,
+    weightCount: wNow ? wNow.n : 0,
+    weightDiff: wNow && wPrev ? wNow.avg - wPrev.avg : null,
     workoutDays, workoutRate: pct(workoutDays, 7),
     tradeDone, tradeTotal, tradeRate: pct(tradeDone, tradeTotal),
     codingHours: sum('coding_minutes') / 60,
@@ -66,9 +69,9 @@ export async function renderWeekly() {
 
   const days = await getAllDays();
   const m = weekMetrics(viewWeek, days, today);
-  const diff = m.weightDiff == null ? '' : `직전 대비 ${m.weightDiff > 0 ? '+' : ''}${fmt1(m.weightDiff)}kg`;
+  const diff = m.weightDiff == null ? `${m.weightCount}회 측정` : `지난주 대비 ${m.weightDiff > 0 ? '+' : ''}${fmt1(m.weightDiff)}kg · ${m.weightCount}회`;
   $('#week-metrics').innerHTML = [
-    tile('체중', m.weight == null ? '—' : `${fmt1(m.weight)}kg`, diff),
+    tile('체중 (주 평균)', m.weight == null ? '—' : `${fmt1(m.weight)}kg`, m.weight == null ? '' : diff),
     tile('운동 완료율', `${m.workoutRate}%`, `${m.workoutDays}/7일`),
     tile('매매 규칙 준수율', m.tradeRate == null ? '—' : `${m.tradeRate}%`, m.tradeTotal ? `${m.tradeDone}/${m.tradeTotal}` : '평일 기록 없음'),
     tile('코딩 합계', `${fmt1(m.codingHours)}시간`),
@@ -89,7 +92,7 @@ export async function renderWeekly() {
     { id: 'one_change', label: '이번 주 실행할 변경 1개 이하', desc: `이번 주 실행으로 정한 아이디어 ${doneThisWeek}개` },
     { id: 'projects_two', label: '진행 중 프로젝트 2개 이하 확인', desc: '수익용 1 + 학습용 1' },
     { id: 'waitlist_only', label: '대기 목록의 새 프로젝트는 추가만, 시작 안 함' },
-    { id: 'weight_same', label: '체중은 같은 요일·기상 직후에 측정' },
+    { id: 'weight_same', label: '체중은 매일 기상 직후 같은 조건에서 측정' },
   ];
   const box = $('#week-review');
   box.innerHTML = '';

@@ -248,3 +248,4 @@ select { font: inherit; color: inherit; width: 100%; min-height: 44px; padding: 
 .editor-btns { display: flex; gap: 6px; margin: 10px 0 4px; }
 .editor-btns .btn { width: auto; flex: 1; text-align: center; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--lv-ink-strong); font-weight: 600; }
+.chart .raw { fill: var(--muted); opacity: .45; }

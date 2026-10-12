@@ -251,7 +251,11 @@ function renderNumbers() {
       const v = parseFloat(input.value);
       record.numbers.weight = Number.isFinite(v) ? Math.round(v * 10) / 10 : null;
       input.value = record.numbers.weight ?? '';
+      // 체중을 입력하면 '기상 직후 체중 측정' 체크도 자동으로 맞춘다
+      record.checks.weigh = record.numbers.weight != null;
       await save(record);
+      await renderChecks();
+      renderHeader();
     });
     const unit = document.createElement('span');
     unit.className = 'muted';

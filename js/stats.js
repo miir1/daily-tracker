@@ -51,12 +51,14 @@ function renderCalendar(byDate) {
 
 // ---------- 그래프 공통 ----------
 // points: [{label, value}] (value가 null이면 그 자리는 비움). 한 그래프에 한 가지 값만 (축은 하나).
-function chartSVG(points, { kind = 'line', unit = '', yMax, ref, refLabel } = {}) {
+// raw: (선택) 같은 값의 원래 측정치 — 흐린 작은 점으로 깔고, points는 그 위에 선으로 (예: 체중 매일 값 + 7일 평균)
+function chartSVG(points, { kind = 'line', unit = '', yMax, ref, raw } = {}) {
   const W = 320, H = 150, L = 30, R = 10, T = 12, B = 22;
   const vals = points.map(p => p.value).filter(v => v != null);
   if (!vals.length) return '<p class="muted">기록 없음</p>';
-  let lo = kind === 'bar' ? 0 : Math.min(...vals);
-  let hi = Math.max(...vals, ref ?? -Infinity, yMax ?? -Infinity);
+  const rawVals = (raw || []).map(p => p.value).filter(v => v != null);
+  let lo = kind === 'bar' ? 0 : Math.min(...vals, ...rawVals);
+  let hi = Math.max(...vals, ...rawVals, ref ?? -Infinity, yMax ?? -Infinity);
   if (kind === 'line' && yMax == null) { const pad = Math.max(0.5, (hi - lo) * 0.2); lo -= pad; hi += pad; }
   if (hi === lo) hi = lo + 1;
   const x = i => L + (points.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (points.length - 1));
@@ -98,9 +100,13 @@ function chartSVG(points, { kind = 'line', unit = '', yMax, ref, refLabel } = {}
       d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`;
       pen = true;
     });
+    (raw || []).forEach((p, i) => {
+      if (p.value == null) return;
+      g += `<circle cx="${x(i)}" cy="${y(p.value)}" r="3" class="raw"><title>${esc(p.label)} · ${fmt1(p.value)}${unit}</title></circle>`;
+    });
     g += `<path d="${d}" class="line"/>`;
     points.forEach((p, i) => {
-      if (p.value == null) return;
+      if (p.value == null || raw) return;
       g += `<circle cx="${x(i)}" cy="${y(p.value)}" r="4" class="dot"><title>${esc(p.label)} · ${fmt1(p.value)}${unit}</title></circle>`;
     });
     // 마지막 값만 숫자로 표시
@@ -128,17 +134,37 @@ export async function renderStats() {
   const range = from <= end ? dateRange(from, end) : [];
 
   // 체중 추이 (측정한 날만, 최근 12회)
-  const weights = days.filter(r => r.numbers?.weight != null).sort((a, b) => a.date.localeCompare(b.date)).slice(-12);
-  const wDiff = weights.length >= 2 ? weights[weights.length - 1].numbers.weight - weights[weights.length - 2].numbers.weight : null;
-  $('#chart-weight-note').textContent = wDiff == null ? '' : `직전 측정 대비 ${wDiff > 0 ? '+' : ''}${fmt1(wDiff)}kg`;
-  $('#chart-weight').innerHTML = chartSVG(weights.map(r => ({ label: mmdd(r.date), value: r.numbers.weight })), { unit: 'kg' });
+  // 체중: 최근 28일. 매일 값은 흐린 점, 7일 이동평균은 선 (하루하루 오르내림보다 흐름을 보려고)
+  const wOf = d => byDate.get(d)?.numbers?.weight ?? null;
+  const weighedDates = days.filter(r => r.numbers?.weight != null).map(r => r.date).sort();
+  if (weighedDates.length) {
+    let wFrom = addDays(state.today, -27);
+    if (wFrom < weighedDates[0]) wFrom = weighedDates[0];
+    const wRange = dateRange(wFrom, state.today);
+    const avg7 = d => {
+      const vals = dateRange(addDays(d, -6), d).map(wOf).filter(v => v != null);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const avgPts = wRange.map(d => ({ label: mmdd(d), value: wOf(d) == null ? null : avg7(d) }));
+    const rawPts = wRange.map(d => ({ label: mmdd(d), value: wOf(d) }));
+    const nowAvg = avg7(state.today) ?? avg7(weighedDates[weighedDates.length - 1]);
+    const prevAvg = avg7(addDays(state.today, -7));
+    $('#chart-weight-note').textContent = nowAvg == null ? ''
+      : `7일 평균 ${fmt1(nowAvg)}kg` + (prevAvg != null ? ` · 1주 전 대비 ${nowAvg - prevAvg > 0 ? '+' : ''}${fmt1(nowAvg - prevAvg)}kg` : '');
+    $('#chart-weight').innerHTML = chartSVG(avgPts, { unit: 'kg', raw: rawPts });
+  } else {
+    $('#chart-weight-note').textContent = '';
+    $('#chart-weight').innerHTML = '<p class="muted">기록 없음</p>';
+  }
 
   // 수면 시간·게임 시간 (일별) — 기록 없는 날은 비움
-  const series = id => range.map(d => {
+  // zeroIsEmpty: 수면 0시간은 실제 값이 아니라 '아직 입력 안 함'이므로 빈칸 처리
+  const series = (id, zeroIsEmpty) => range.map(d => {
     const r = byDate.get(d);
-    return { label: mmdd(d), value: r ? Number(r.numbers?.[id]) || 0 : null };
+    const v = r ? Number(r.numbers?.[id]) || 0 : null;
+    return { label: mmdd(d), value: zeroIsEmpty && v === 0 ? null : v };
   });
-  $('#chart-sleep').innerHTML = chartSVG(series('sleep_hours'), { unit: '시간', yMax: 10, ref: 6, refLabel: '6시간' });
+  $('#chart-sleep').innerHTML = chartSVG(series('sleep_hours', true), { unit: '시간', yMax: 10, ref: 6, refLabel: '6시간' });
   $('#chart-game').innerHTML = chartSVG(series('game_hours'), { kind: 'bar', unit: '시간' });
 
   // 항목별 준수율: 그 항목이 표시된 날 대비 완료한 날 비율, 낮은 순
