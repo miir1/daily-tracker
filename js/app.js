@@ -41,10 +41,6 @@ async function renderHeader() {
   $('#progress-fill').style.width = pct + '%';
   $('#progress-text').textContent = pct + '%';
   $('#streak').textContent = `연속 ${await streak()}일`;
-
-  // 판단 규칙: 그날 tasks_done이 0이면 당일 화면에 '게임 시간 절반' 표시.
-  const tasksDone = record.tasks.filter(t => t.text && t.done).length;
-  $('#game-half').hidden = tasksDone !== 0;
 }
 
 function renderTodayTasks() {

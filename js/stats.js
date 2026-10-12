@@ -139,7 +139,7 @@ export async function renderStats() {
     return { label: mmdd(d), value: r ? Number(r.numbers?.[id]) || 0 : null };
   });
   $('#chart-sleep').innerHTML = chartSVG(series('sleep_hours'), { unit: '시간', yMax: 10, ref: 6, refLabel: '6시간' });
-  $('#chart-game').innerHTML = chartSVG(series('game_hours'), { kind: 'bar', unit: '시간', ref: 2, refLabel: '상한 2시간' });
+  $('#chart-game').innerHTML = chartSVG(series('game_hours'), { kind: 'bar', unit: '시간' });
 
   // 항목별 준수율: 그 항목이 표시된 날 대비 완료한 날 비율, 낮은 순
   const stats = new Map();
