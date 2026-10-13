@@ -86,7 +86,7 @@ export async function exportCSV(config) {
   for (const d of days) for (const id of Object.keys(d.checks || {})) if (!checkIds.includes(id)) checkIds.push(id);
   const numIds = ['tasks_done', 'rule_violations', 'game_hours', 'sleep_hours', 'coding_minutes', 'weight'];
 
-  const header = ['date', ...checkIds, ...numIds, 'tasks', 'note', 'updatedAt'];
+  const header = ['date', ...checkIds, ...numIds, 'tasks', 'meals', 'note', 'updatedAt'];
   const lines = [header.join(',')];
   for (const d of days) {
     const row = [
@@ -95,6 +95,7 @@ export async function exportCSV(config) {
       ...checkIds.map(id => (id in (d.checks || {}) ? (d.checks[id] ? 1 : 0) : '')),
       ...numIds.map(id => d.numbers?.[id]),
       (d.tasks || []).filter(t => t.text).map(t => (t.done ? '[v] ' : '[ ] ') + t.text).join(' / '),
+      (d.meals || []).map(m => `${m.time || '--:--'} ${m.kind} ${m.text}`).join(' / '),
       d.note,
       d.updatedAt,
     ];

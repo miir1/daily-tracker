@@ -23,6 +23,7 @@ export function emptyRecord(date) {
     checks: {},
     numbers: { tasks_done: 0, rule_violations: 0, game_hours: 0, sleep_hours: 0, coding_minutes: 0, weight: null },
     tasks: [],
+    meals: [],      // 식사 기록 [{ time: "08:00", kind: "아침", text: "계란 2개" }]
     workout: {},
     note: '',
     updatedAt: null,

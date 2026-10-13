@@ -249,3 +249,17 @@ select { font: inherit; color: inherit; width: 100%; min-height: 44px; padding: 
 .editor-btns .btn { width: auto; flex: 1; text-align: center; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--lv-ink-strong); font-weight: 600; }
 .chart .raw { fill: var(--muted); opacity: .45; }
+
+/* ---------- 식사 기록 ---------- */
+.meal-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+#meal-list .meal-row:first-child { border-top: none; }
+.meal-row .check-text { flex: 1; min-width: 0; }
+.meal-time { width: auto; min-width: 44px; }
+.meal-form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0 6px; }
+.meal-form input[type="time"] {
+  width: 100%; min-height: 44px; padding: 8px 10px; font: inherit; color: inherit;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+}
+#meal-cancel { margin-bottom: 8px; }
+.num-row input[type="number"] { width: 110px; flex: none; }
+.num-label { white-space: nowrap; }

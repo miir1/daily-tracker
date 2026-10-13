@@ -265,6 +265,103 @@ function renderNumbers() {
   }
 }
 
+// ---------- 식사 기록 ----------
+// record.meals = [{ time: "HH:MM", kind: "아침|점심|저녁|간식", text }] — 시간순으로 저장
+
+let editingMeal = -1;   // 수정 중인 식사 번호 (-1 = 새로 추가)
+let mealKindTouched = false; // 끼니를 직접 골랐으면 시간이 바뀌어도 자동으로 안 바꿈
+
+// 시각으로 끼니 추측: ~10:30 아침, ~15:00 점심, 17:00~21:00 저녁, 나머지 간식
+function guessKind(hm) {
+  if (!hm) return '간식';
+  if (hm >= '05:00' && hm < '10:30') return '아침';
+  if (hm >= '11:00' && hm < '15:00') return '점심';
+  if (hm >= '17:00' && hm < '21:00') return '저녁';
+  return '간식';
+}
+
+function resetMealForm() {
+  editingMeal = -1;
+  mealKindTouched = false;
+  // 오늘을 보고 있으면 지금 시각을 기본값으로
+  const hm = viewDate === state.today ? nowSeoulHM() : '';
+  $('#meal-time').value = hm;
+  $('#meal-kind').value = guessKind(hm);
+  $('#meal-text').value = '';
+  $('#meal-add').textContent = '추가';
+  $('#meal-cancel').hidden = true;
+}
+
+function renderMeals() {
+  const box = $('#meal-list');
+  box.innerHTML = '';
+  const meals = record.meals || [];
+  if (!meals.length) box.innerHTML = '<p class="muted">기록 없음</p>';
+  meals.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'meal-row';
+    const time = document.createElement('span');
+    time.className = 'slot-time meal-time';
+    time.textContent = m.time || '--:--';
+    const text = document.createElement('span');
+    text.className = 'check-text';
+    const main = document.createElement('span');
+    main.textContent = m.text;
+    const small = document.createElement('small');
+    small.textContent = m.kind;
+    text.append(main, small);
+    const btns = document.createElement('div');
+    btns.className = 'item-btns';
+    const edit = document.createElement('button');
+    edit.type = 'button'; edit.className = 'icon-btn'; edit.textContent = '수정';
+    edit.addEventListener('click', () => {
+      editingMeal = i;
+      mealKindTouched = true;
+      $('#meal-time').value = m.time || '';
+      $('#meal-kind').value = m.kind;
+      $('#meal-text').value = m.text;
+      $('#meal-add').textContent = '저장';
+      $('#meal-cancel').hidden = false;
+      $('#meal-text').focus();
+    });
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'icon-btn'; del.textContent = '삭제';
+    del.addEventListener('click', async () => {
+      if (!confirm(`'${m.text}' 기록을 지울까요?`)) return;
+      record.meals.splice(i, 1);
+      await save(record);
+      resetMealForm();
+      renderMeals();
+    });
+    btns.append(edit, del);
+    row.append(time, text, btns);
+    box.appendChild(row);
+  });
+}
+
+function initMeals() {
+  $('#meal-time').addEventListener('change', () => {
+    if (!mealKindTouched) $('#meal-kind').value = guessKind($('#meal-time').value);
+  });
+  $('#meal-kind').addEventListener('change', () => { mealKindTouched = true; });
+  const add = async () => {
+    const text = $('#meal-text').value.trim();
+    if (!text) { $('#meal-text').focus(); return; }
+    const meal = { time: $('#meal-time').value, kind: $('#meal-kind').value, text };
+    record.meals = record.meals || [];
+    if (editingMeal >= 0) record.meals[editingMeal] = meal;
+    else record.meals.push(meal);
+    // 시간순 정렬 (시간 없는 기록은 맨 뒤)
+    record.meals.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+    await save(record);
+    resetMealForm();
+    renderMeals();
+  };
+  $('#meal-add').addEventListener('click', add);
+  $('#meal-text').addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  $('#meal-cancel').addEventListener('click', resetMealForm);
+}
+
 function renderBottom() {
   // '내일 할 일 3개'는 다음 날 기록의 tasks에 저장된다 → 다음 날 화면 맨 위에 체크박스로 나타남.
   const box = $('#tomorrow-tasks');
@@ -300,6 +397,8 @@ async function openDate(date) {
   await renderWorkout();
   await renderChecks();
   renderNumbers();
+  resetMealForm();
+  renderMeals();
   renderBottom();
   await renderHeader();
 }
@@ -448,6 +547,7 @@ async function init() {
 
   initBackup();
   initPrivateItems();
+  initMeals();
   initWeekly();
   // 달력에서 날짜를 누르면 오늘 탭에서 그날 기록을 연다
   initStats(async date => { viewDate = date; await showView('view-today'); });

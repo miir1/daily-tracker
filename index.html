@@ -58,6 +58,22 @@
       </section>
 
       <section class="card">
+        <h2>식사 기록</h2>
+        <div id="meal-list"></div>
+        <div class="meal-form">
+          <input id="meal-time" type="time" aria-label="먹은 시각">
+          <select id="meal-kind" aria-label="끼니">
+            <option>아침</option><option>점심</option><option>저녁</option><option>간식</option>
+          </select>
+        </div>
+        <div class="add-row">
+          <input id="meal-text" type="text" maxlength="80" placeholder="먹은 음식 (예: 계란 2개)">
+          <button id="meal-add" class="btn add-btn" type="button">추가</button>
+        </div>
+        <button id="meal-cancel" class="btn" type="button" hidden>수정 취소</button>
+      </section>
+
+      <section class="card">
         <h2>내일 할 일 3개</h2>
         <div id="tomorrow-tasks" class="text-inputs"></div>
         <h2>한 줄 메모</h2>
