@@ -263,3 +263,5 @@ select { font: inherit; color: inherit; width: 100%; min-height: 44px; padding: 
 #meal-cancel { margin-bottom: 8px; }
 .num-row input[type="number"] { width: 110px; flex: none; }
 .num-label { white-space: nowrap; }
+.cal-cell.rest { border-style: dashed; }
+.pref-label small { display: block; font-size: 12px; margin-top: 2px; }

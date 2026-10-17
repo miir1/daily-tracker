@@ -5,7 +5,7 @@
 // - 인터넷이 되면 항상 최신 파일을 받아오고, 받은 걸 보관본으로 갱신한다 → 코드 수정이 바로 반영됨
 // - 인터넷이 안 되면 보관본을 쓴다 → 오프라인에서도 체크 가능
 
-const CACHE = 'daily-tracker-v9';
+const CACHE = 'daily-tracker-v10';
 const FILES = [
   './', 'index.html', 'style.css', 'items.json', 'manifest.json',
   'js/app.js', 'js/date.js', 'js/db.js', 'js/backup.js',

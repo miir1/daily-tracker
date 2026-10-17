@@ -3,7 +3,7 @@
 import { todaySeoul, addDays, weekday, formatKo, nowSeoulHM } from './date.js';
 import { getAllDays, requestPersist, getSetting, setSetting } from './db.js';
 import { exportJSON, importJSON, exportCSV, backupOverdueDays, lastBackupDate } from './backup.js';
-import { state, loadRecord, save, buildConfig, visibleChecks, completion } from './core.js';
+import { state, loadRecord, save, buildConfig, visibleChecks, completion, isRestDay } from './core.js';
 import { renderWorkoutCard, walkTarget, isWorkoutDay } from './workout.js';
 import { renderWeekly, initWeekly } from './weekly.js';
 import { renderStats, initStats } from './stats.js';
@@ -20,20 +20,27 @@ let currentView = 'view-today';
 
 // 연속 달성일: 완료율 70% 이상인 날이 끊기지 않고 이어진 일수.
 // 오늘이 아직 70% 미만이면(하루가 안 끝났을 수 있으니) 어제부터 센다.
+// 쉬는 날(기본 토·일)은 세지도 않고 끊지도 않고 건너뛴다 → 금요일 기록이 월요일로 이어진다.
 async function streak() {
   const all = await getAllDays();
   const byDate = new Map(all.map(r => [r.date, r]));
   const ok = d => completion(byDate.get(d), d) >= 0.7;
-  let d = ok(state.today) ? state.today : addDays(state.today, -1);
+  let d = state.today;
+  if (!isRestDay(d) && !ok(d)) d = addDays(d, -1);
   let count = 0;
-  while (ok(d)) { count++; d = addDays(d, -1); }
+  for (let guard = 0; guard < 3650; guard++) {
+    if (isRestDay(d)) { d = addDays(d, -1); continue; }
+    if (!ok(d)) break;
+    count++;
+    d = addDays(d, -1);
+  }
   return count;
 }
 
 // ---------- 그리기 ----------
 
 async function renderHeader() {
-  $('#date-label').textContent = formatKo(viewDate) + (viewDate === state.today ? ' · 오늘' : '');
+  $('#date-label').textContent = formatKo(viewDate) + (viewDate === state.today ? ' · 오늘' : '') + (isRestDay(viewDate) ? ' · 쉬는 날' : '');
   $('#next-day').disabled = viewDate >= state.today;
   $('#go-today').hidden = viewDate === state.today;
 
@@ -133,7 +140,7 @@ async function renderChecks() {
 // 운동 요일에만 보이는 운동 카드
 async function renderWorkout() {
   const card = $('#workout-card');
-  const show = isWorkoutDay(viewDate, weekday(viewDate)) && (state.config.workout?.exercises || []).length;
+  const show = isWorkoutDay(viewDate, weekday(viewDate)) && !isRestDay(viewDate) && (state.config.workout?.exercises || []).length;
   card.hidden = !show;
   if (!show) return;
   await renderWorkoutCard($('#workout-list'), record, async rec => {

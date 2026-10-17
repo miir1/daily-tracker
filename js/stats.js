@@ -1,6 +1,6 @@
 // 6단계: 기록·통계 탭 — 월 달력, 그래프(체중·수면·게임), 항목별 준수율.
 // 그래프는 외부 라이브러리 없이 SVG로 직접 그린다 (오프라인에서도 동작).
-import { state, completion, visibleChecks, dateRange } from './core.js';
+import { state, completion, visibleChecks, dateRange, isRestDay } from './core.js';
 import { addDays, weekday } from './date.js';
 import { getAllDays } from './db.js';
 
@@ -43,6 +43,7 @@ function renderCalendar(byDate) {
     } else {
       cell.title = `${date} · 기록 없음`;
     }
+    if (isRestDay(date)) cell.classList.add('rest');
     if (date === state.today) cell.classList.add('is-today');
     cell.addEventListener('click', () => onOpenDate && onOpenDate(date));
     grid.appendChild(cell);

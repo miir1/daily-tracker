@@ -13,7 +13,7 @@ export const state = {
   today: null,      // 서울 기준 오늘
 };
 
-export const DEFAULT_PREFS = { weightDays: [0, 1, 2, 3, 4, 5, 6], workoutDays: [1, 3, 5], theme: 'auto' };
+export const DEFAULT_PREFS = { weightDays: [0, 1, 2, 3, 4, 5, 6], workoutDays: [1, 3, 5], restDays: [0, 6], theme: 'auto' };
 
 // ---------- 하루 기록 ----------
 
@@ -95,8 +95,11 @@ export async function buildConfig() {
   for (const c of cfg.checks) {
     if (c.followWorkoutDays && !edits?.overrides?.[c.id]?.days) c.days = follow(c.followWorkoutDays);
   }
+  // 쉬는 요일: rest 칸은 쉬는 요일에만, 나머지 칸은 쉬는 요일에는 숨긴다
+  const rest = state.prefs.restDays || [];
   for (const s of cfg.schedule || []) {
     if (s.followWorkoutDays) s.days = follow(s.followWorkoutDays);
+    s.days = s.rest ? [...rest] : s.days.filter(d => !rest.includes(d));
   }
   state.config = cfg;
   return cfg;
@@ -104,10 +107,17 @@ export async function buildConfig() {
 
 // ---------- 계산 ----------
 
+// 쉬는 날인가 (설정 탭의 쉬는 요일, 기본 토·일)
+export function isRestDay(date) {
+  return (state.prefs?.restDays || []).includes(weekday(date));
+}
+
 // 그 날짜(요일)에 보여줄 체크 항목들. 숨김 항목, 해당 요일이 아닌 항목은 빠진다.
+// 쉬는 날에는 restKeep 항목(기상·복약·취침)과 비공개 항목(약물)만 남는다.
 export function visibleChecks(date) {
   const wd = weekday(date);
-  return state.config.checks.filter(c => !c.hidden && c.days.includes(wd));
+  const rest = isRestDay(date);
+  return state.config.checks.filter(c => !c.hidden && c.days.includes(wd) && (!rest || c.restKeep || c.private));
 }
 
 // 완료율 = 그날 표시된 항목 중 완료 수 ÷ 전체 수. 기록이 없으면 0.

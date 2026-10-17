@@ -97,7 +97,12 @@ function renderPrefs() {
   workoutRow.innerHTML = '<span class="pref-label">근력 운동 요일</span>';
   workoutRow.appendChild(dayPicker(state.prefs.workoutDays, days => savePrefs({ workoutDays: days })));
 
-  box.append(themeRow, weightRow, workoutRow);
+  const restRow = document.createElement('div');
+  restRow.className = 'pref-row';
+  restRow.innerHTML = '<span class="pref-label">쉬는 요일 <small class="muted">기상·복약·취침과 비공개 약물 항목만 표시, 연속 기록·준수율 계산에서 제외</small></span>';
+  restRow.appendChild(dayPicker(state.prefs.restDays, days => savePrefs({ restDays: days })));
+
+  box.append(themeRow, restRow, weightRow, workoutRow);
 }
 
 // ---------- 운동 목표 수동 조정 ----------

@@ -1,6 +1,6 @@
 // 5단계: 주간 점검 탭 — 주간 지표, 쿨다운 아이디어, 다음 주 개선 항목.
 // 지표는 저장하지 않고 하루 기록에서 그때그때 계산한다.
-import { state, weekStart, dateRange, daysBetween } from './core.js';
+import { state, weekStart, dateRange, daysBetween, isRestDay } from './core.js';
 import { addDays, formatKo, nowSeoulISO, weekday } from './date.js';
 import { getAllDays, getAllFrom, putInto } from './db.js';
 
@@ -31,8 +31,9 @@ export function weekMetrics(ws, days, today) {
   const wNow = avgWeight(ws, addDays(ws, 6));
   const wPrev = avgWeight(addDays(ws, -7), addDays(ws, -1));
 
-  // 운동 완료율: workout 체크한 날 ÷ 7
-  const workoutDays = recs.filter(r => r.checks?.workout).length;
+  // 운동 완료율: workout 체크한 날 ÷ 그 주의 쉬는 날 아닌 날 수 (기본 5일)
+  const activeDays = week.filter(d => !isRestDay(d)).length || 7;
+  const workoutDays = recs.filter(r => r.checks?.workout && !isRestDay(r.date)).length;
 
   // 매매 규칙 준수율: 평일 매매 항목 4개 완료 수 ÷ 전체 수 (오늘까지 지난 평일만)
   const tradeDays = upToToday.filter(d => weekday(d) >= 1 && weekday(d) <= 5);
@@ -47,7 +48,7 @@ export function weekMetrics(ws, days, today) {
     weight: wNow ? wNow.avg : null,
     weightCount: wNow ? wNow.n : 0,
     weightDiff: wNow && wPrev ? wNow.avg - wPrev.avg : null,
-    workoutDays, workoutRate: pct(workoutDays, 7),
+    workoutDays, activeDays, workoutRate: pct(workoutDays, activeDays),
     tradeDone, tradeTotal, tradeRate: pct(tradeDone, tradeTotal),
     codingHours: sum('coding_minutes') / 60,
     gameHours: sum('game_hours'),
@@ -72,7 +73,7 @@ export async function renderWeekly() {
   const diff = m.weightDiff == null ? `${m.weightCount}회 측정` : `지난주 대비 ${m.weightDiff > 0 ? '+' : ''}${fmt1(m.weightDiff)}kg · ${m.weightCount}회`;
   $('#week-metrics').innerHTML = [
     tile('체중 (주 평균)', m.weight == null ? '—' : `${fmt1(m.weight)}kg`, m.weight == null ? '' : diff),
-    tile('운동 완료율', `${m.workoutRate}%`, `${m.workoutDays}/7일`),
+    tile('운동 완료율', `${m.workoutRate}%`, `${m.workoutDays}/${m.activeDays}일 (쉬는 날 제외)`),
     tile('매매 규칙 준수율', m.tradeRate == null ? '—' : `${m.tradeRate}%`, m.tradeTotal ? `${m.tradeDone}/${m.tradeTotal}` : '평일 기록 없음'),
     tile('코딩 합계', `${fmt1(m.codingHours)}시간`),
     tile('게임 합계', `${fmt1(m.gameHours)}시간`),
